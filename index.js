@@ -93,7 +93,7 @@ let server = express()
 server.use(graphIQLPath, graphqlHTTP({schema: graphQLSchema, graphiql: true, extensions}))
 
 server.listen(port, () => {
-    console.log(`Server listening on port ${port}`)
+    console.log(`Server listening on port ${port}, graphQL client available at ${graphIQLPath}`)
 })
 
 
