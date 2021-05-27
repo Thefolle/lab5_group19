@@ -1,7 +1,7 @@
 "use strict"
 
 import express from 'express'
-import graphql_tools from 'graphql-tools'
+import {makeExecutableSchema} from 'graphql-tools'
 import {graphqlHTTP} from "express-graphql"
 import mongoose from 'mongoose'
 
@@ -31,16 +31,16 @@ let CommentSchema = new mongoose.Schema({
     title: String,
     body: String,
     stars: Number,
-    date: Number
+    date: Date
 })
 let Comment = new mongoose.model('Comment', CommentSchema)
 
 let ProductSchema = new mongoose.Schema({
     name: String,
-    createdAt: Number,
+    createdAt: Date,
     description: String,
     price: Number,
-    comments : String,
+    comments : [{type: mongoose.Schema.Types.ObjectId, ref: "Comment"}],
     category: String,
     stars: Number
 })
@@ -50,8 +50,9 @@ let Product = new mongoose.model('Product', ProductSchema)
 
 /* GraphQL: schema and resolvers */
 
-const graphQLSchema = graphql_tools.makeExecutableSchema({
+const graphQLSchema = makeExecutableSchema({
     typeDefs: `
+        scalar DateTime,
         enum ProductCategory {
             STYLE
             FOOD
@@ -82,57 +83,68 @@ const graphQLSchema = graphql_tools.makeExecutableSchema({
             title: String!,
             body: String,
             stars: Int!,
-            date: Int!
+            date: DateTime!
         },
         type Product {
             _id: ID!,
             name: String!,
-            createdAt: Int!,
+            createdAt: DateTime!,
             description: String,
             price: Float!,
             comments (numberOfLastRecentComments: Int) : [Comment],
             category: ProductCategory!,
             stars: Float
         },
-        input FilterProductInput {
+        input ProductFilterInput {
             categories: [ProductCategory],
             minStars: Int,
             minPrice: Float,
             maxPrice: Float
         },
-        input SortProductInput {
+        input ProductSortInput {
             value: SortingValue!,
             order: SortingOrder!
         },
-        type Mutation {
-            createProduct(product: ProductCreateInput!) : ID,
-            createComment(comment: CommentCreateInput): ID
-        },
         type Query {
-            dummy: String
-            products (filter: FilterProductInput, sort: SortProductInput) : [Product],
+            products (filter: ProductFilterInput, sort: ProductSortInput) : [Product],
             product (id: ID!) : Product,
+        },
+        type Mutation {
+            createProduct (product: ProductCreateInput!) : Product,
+            createComment (
+                comment: CommentCreateInput!,
+                productId: ID!
+            ) : Comment
         }
     `,
     resolvers: {
         Query: {
-            product: (parent, args, context, info) => {
-
-                // return Product.findById(args.id).then(product => product)
+            product: async (parent, args, context, info) => {
+                return Product.findById(args.id)
             }
         },
         Mutation: {
-            createComment: (parent, args, context, info) => {
+            createComment: async (parent, args, context, info) => {
                 let commentInput = args.comment
                 commentInput.date = Date.now()
                 let comment = new Comment(commentInput)
-                return comment.save().then(savedComment => savedComment.id)
+                const res = await comment.save()
+
+                const id = args.productId
+
+                await Product.findOneAndUpdate({
+                    _id: id
+                }, {
+                    $push : {comments: comment}
+                })
+
+                return res
             },
-            createProduct: (parent, args, context, info) => {
+            createProduct: async (parent, args, context, info) => {
                 let productInput = args.product
                 productInput.createdAt = Date.now()
                 let product = new Product(productInput)
-                return product.save().then(savedProduct => savedProduct.id)
+                return await product.save()
             }
         }
     }
@@ -141,21 +153,23 @@ const graphQLSchema = graphql_tools.makeExecutableSchema({
 
 /* Logging extension */
 
-const extensions = ({document, variables, operationName, result, context}) => {
-    let now = new Date()
-    let log = `LOG ${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}  `
-    log += document.definitions[0].operation
-    for (let field in result.data) log += ` ${field} ${result.data[field]}`
-
-    console.log(log)
-}
+// const extensions = ({document, variables, operationName, result, context}) => {
+//     let now = new Date()
+//     let log = `LOG ${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}  `
+//     log += document.definitions[0].operation
+//     for (let field in result.data) log += ` ${field} ${result.data[field]}`
+//
+//     console.log(log)
+// }
 
 
 
 /* Run the web server */
 
 let server = express()
-server.use(graphIQLPath, graphqlHTTP({schema: graphQLSchema, graphiql: true, extensions}))
+// server.use(graphIQLPath, graphqlHTTP({schema: graphQLSchema, graphiql: true, extensions}))
+
+server.use(graphIQLPath, graphqlHTTP({schema: graphQLSchema, graphiql: true}))
 
 server.listen(port, () => {
     console.log(`Server listening on port ${port}, graphQL client available at ${graphIQLPath}`)
