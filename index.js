@@ -25,7 +25,6 @@ try {
 }
 
 
-
 /* Schemas for MongoDB */
 
 let CommentSchema = new mongoose.Schema({
@@ -36,38 +35,104 @@ let CommentSchema = new mongoose.Schema({
 })
 let Comment = new mongoose.model('Comment', CommentSchema)
 
+let ProductSchema = new mongoose.Schema({
+    name: String,
+    createdAt: Number,
+    description: String,
+    price: Number,
+    comments : String,
+    category: String,
+    stars: Number
+})
+let Product = new mongoose.model('Product', ProductSchema)
+
 
 
 /* GraphQL: schema and resolvers */
 
 const graphQLSchema = graphql_tools.makeExecutableSchema({
     typeDefs: `
+        enum ProductCategory {
+            STYLE
+            FOOD
+            TECH
+            SPORT
+        },
+        enum SortingValue {
+            createdAt
+            price
+        },
+        enum SortingOrder {
+            asc
+            desc
+        },
+        input ProductCreateInput {
+            name : String!,
+            description : String,
+            price : Float!,
+            category: ProductCategory!
+        },
         input CommentCreateInput {
             title: String!,
             body: String,
             stars: Int!
-        },
+        }
         type Comment {
-            _id: ID,
+            _id: ID!,
             title: String!,
             body: String,
             stars: Int!,
-            date: Int
+            date: Int!
+        },
+        type Product {
+            _id: ID!,
+            name: String!,
+            createdAt: Int!,
+            description: String,
+            price: Float!,
+            comments (numberOfLastRecentComments: Int) : [Comment],
+            category: ProductCategory!,
+            stars: Float
+        },
+        input FilterProductInput {
+            categories: [ProductCategory],
+            minStars: Int,
+            minPrice: Float,
+            maxPrice: Float
+        },
+        input SortProductInput {
+            value: SortingValue!,
+            order: SortingOrder!
         },
         type Mutation {
+            createProduct(product: ProductCreateInput!) : ID,
             createComment(comment: CommentCreateInput): ID
         },
         type Query {
             dummy: String
+            products (filter: FilterProductInput, sort: SortProductInput) : [Product],
+            product (id: ID!) : Product,
         }
     `,
     resolvers: {
+        Query: {
+            product: (parent, args, context, info) => {
+
+                // return Product.findById(args.id).then(product => product)
+            }
+        },
         Mutation: {
             createComment: (parent, args, context, info) => {
                 let commentInput = args.comment
                 commentInput.date = Date.now()
                 let comment = new Comment(commentInput)
                 return comment.save().then(savedComment => savedComment.id)
+            },
+            createProduct: (parent, args, context, info) => {
+                let productInput = args.product
+                productInput.createdAt = Date.now()
+                let product = new Product(productInput)
+                return product.save().then(savedProduct => savedProduct.id)
             }
         }
     }
