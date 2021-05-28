@@ -128,14 +128,29 @@ const graphQLSchema = makeExecutableSchema({
                 let commentInput = args.comment
                 commentInput.date = Date.now()
                 let comment = new Comment(commentInput)
+                //save new comment
                 const res = await comment.save()
 
                 const id = args.productId
+                var stars = comment.stars
 
+                //find all the comments for that product and compute the avg of the stars
+                let product =  await Product.findById(id)
+                let commentID;
+
+                let comments = await Comment.find({"_id": {"$in": product.comments}})
+                let comments_stars = comments.map((it)=> {return it.stars})
+                for (let i = 0; i<comments_stars.length; i++){
+                    stars += comments_stars[i]
+                }
+                stars = stars/(comments_stars.length + 1)
+
+                //update Product adding the new comment and updating value of stars
                 await Product.findOneAndUpdate({
                     _id: id
                 }, {
-                    $push : {comments: comment}
+                    $push : {comments: comment},
+                    stars: stars
                 })
 
                 return res
