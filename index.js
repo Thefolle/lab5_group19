@@ -121,10 +121,49 @@ const graphQLSchema = makeExecutableSchema({
         Query: {
             product: async (parent, args, context, info) => {
                 return Product.findById(args.id)
+            },
+            products: async (parent, args, context, info) =>{
+                let cat
+                let minP
+                let maxP
+                let minS
+                let sort_value
+                let sort_order
+                //Check if some filter is missing and set a default value
+                //categories
+                if (args.filter.categories == null)
+                    cat = ['FOOD', 'SPORT', 'TECH', 'STYLE']
+                else
+                    cat = args.filter.categories
+                //minStars
+                if (args.filter.minStars == null)
+                    minS = 0
+                else
+                    minS = args.filter.minStars
+                //minPrice
+                if (args.filter.minPrice == null)
+                    minP = 0
+                else
+                    minP = args.filter.minPrice
+                //maxPrice
+                if (args.filter.maxPrice == null)
+                    maxP = Number.MAX_VALUE
+                else
+                    maxP = args.filter.maxPrice
+
+                return Product.find({category: {"$in": cat},
+                                          stars: {"$gte": minS},
+                                          price: {"$gte": minP, "$lte": maxP}}).sort({[args.sort.value]: args.sort.order,})
+
             }
         },
         Mutation: {
             createComment: async (parent, args, context, info) => {
+                if (args.comment.stars < 1 || args.comment.stars > 5){
+                    console.log("Error: Stars must be from 1 to 5!")
+                    return
+                }
+
                 let commentInput = args.comment
                 commentInput.date = Date.now()
                 let comment = new Comment(commentInput)
@@ -159,6 +198,7 @@ const graphQLSchema = makeExecutableSchema({
                 let productInput = args.product
                 productInput.createdAt = Date.now()
                 let product = new Product(productInput)
+                product.stars = 0
                 return await product.save()
             }
         }
