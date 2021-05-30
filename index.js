@@ -130,6 +130,9 @@ const graphQLSchema = makeExecutableSchema({
                 let sort_value
                 let sort_order
                 //Check if some filter is missing and set a default value
+                if (!args.filter) args.filter = {}
+                if (!args.sort) args.sort = {value: 'createdAt', order: 'asc'}
+
                 //categories
                 if (args.filter.categories == null)
                     cat = ['FOOD', 'SPORT', 'TECH', 'STYLE']
