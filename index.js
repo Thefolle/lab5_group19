@@ -119,8 +119,8 @@ const graphQLSchema = makeExecutableSchema({
     `,
     resolvers: {
         Query: {
-            product: async (parent, args, context, info) => {
-                return Product.findById(args.id)
+            product: (parent, args, context, info) => {
+                return Product.findById(args.id);
             },
             products: async (parent, args, context, info) =>{
                 let cat
@@ -162,7 +162,7 @@ const graphQLSchema = makeExecutableSchema({
         },
         Mutation: {
             createComment: async (parent, args, context, info) => {
-                if (args.comment.stars < 1 || args.comment.stars > 5){
+                if (args.comment.stars < 1 || args.comment.stars > 5) {
                     console.log("Error: Stars must be from 1 to 5!")
                     return
                 }
@@ -209,23 +209,9 @@ const graphQLSchema = makeExecutableSchema({
 })
 
 
-/* Logging extension */
-
-// const extensions = ({document, variables, operationName, result, context}) => {
-//     let now = new Date()
-//     let log = `LOG ${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}  `
-//     log += document.definitions[0].operation
-//     for (let field in result.data) log += ` ${field} ${result.data[field]}`
-//
-//     console.log(log)
-// }
-
-
-
 /* Run the web server */
 
 let server = express()
-// server.use(graphIQLPath, graphqlHTTP({schema: graphQLSchema, graphiql: true, extensions}))
 
 server.use(graphIQLPath, graphqlHTTP({schema: graphQLSchema, graphiql: true}))
 
